@@ -30,6 +30,18 @@ $$;
 revoke all on function public.horus_can_submit(uuid) from public, anon;
 grant execute on function public.horus_can_submit(uuid) to authenticated;
 
+-- Trainees retain read access to published and closed assignments in their enrolled cohorts.
+drop policy if exists assignments_select_accessible on public.assignments;
+create policy assignments_select_accessible on public.assignments
+for select to authenticated
+using (
+  (select public.horus_is_staff())
+  or (
+    status in ('published'::public.assignment_status, 'closed'::public.assignment_status)
+    and (select public.horus_is_enrolled(cohort_id))
+  )
+);
+
 -- Allow instructors to see names of trainees in cohorts where they created assignments.
 drop policy if exists profiles_instructor_assignment_roster on public.profiles;
 create policy profiles_instructor_assignment_roster
