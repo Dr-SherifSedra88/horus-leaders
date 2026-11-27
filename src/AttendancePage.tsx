@@ -139,6 +139,23 @@ export default function AttendancePage({ role }: { role: 'admin' | 'instructor' 
     })
   }
 
+  async function markRemainingAbsent() {
+    if (!supabase || !selectedSession || !started) return
+    const missing = members.filter(member => !member.record)
+    if (!missing.length) return
+    if (!window.confirm(`سيتم تسجيل ${missing.length} متدرب كغائب بدون عذر لعدم وجود تسجيل. هل تريد المتابعة؟`)) return
+    setSaving(true); setError(''); setSuccess('')
+    const user = await supabase.auth.getUser()
+    const now = new Date().toISOString()
+    const { error: insertError } = await supabase.from('attendance').insert(missing.map(member => ({
+      session_id: sessionId, trainee_id: member.id, status: 'absent', late_minutes: 0,
+      excuse_status: 'none', source: 'manual', recorded_by: user.data.user?.id, recorded_at: now
+    })))
+    setSaving(false)
+    if (insertError) setError('تعذر تسجيل الغياب للمتدربين غير المسجلين: ' + insertError.message)
+    else { setSuccess('تم تسجيل الغياب للمتدربين الذين لم يقدموا أي تسجيل.'); await loadAttendance() }
+  }
+
   async function manualStatus(member: Member, status: 'present' | 'absent' | 'late') {
     const actual = new Date(timeDrafts[member.id] || new Date().toISOString())
     await updateRecord(member, {
@@ -188,7 +205,7 @@ export default function AttendancePage({ role }: { role: 'admin' | 'instructor' 
           </div>
         </div>}
       </div> : <div className="attendance-roster">
-        <div className="attendance-roster-head"><div><strong>كشف المتدربين</strong><small>{members.length} متدرب</small></div><span>الاعتماد والتصحيح متاحان للقائد فقط</span></div>
+        <div className="attendance-roster-head"><div><strong>كشف المتدربين</strong><small>{members.length} متدرب · {members.filter(member => !member.record).length} بدون تسجيل</small></div><div className="attendance-roster-tools"><span>الاعتماد والتصحيح متاحان للقائد فقط</span>{started && members.some(member => !member.record) && <button className="outline-btn" onClick={() => void markRemainingAbsent()} disabled={saving}>تسجيل غير المسجلين كغياب</button>}</div></div>
         {!members.length ? <div className="admin-empty">لا يوجد متدربون مسجلون في هذه الدفعة.</div> : members.map(member => {
           const record = member.record
           return <article className="attendance-member" key={member.id}>
