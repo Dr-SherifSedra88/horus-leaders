@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Anchor, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Home, LogIn, Menu, Megaphone, Settings, ShieldCheck, Users, X, ChevronLeft, FileText, Award, Bell } from 'lucide-react'
+import { Anchor, BookOpen, CalendarCheck, ClipboardList, Home, LogIn, Menu, Megaphone, Settings, ShieldCheck, Users, X, ChevronLeft, FileText, Award, Bell } from 'lucide-react'
 import { supabase } from './supabase'
 
 type Page = 'home' | 'library' | 'assignments' | 'attendance' | 'cohort' | 'admin'
