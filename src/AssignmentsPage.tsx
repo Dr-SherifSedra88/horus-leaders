@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ClipboardList, Plus, RefreshCw, Upload, Download, FileText, Clock, CheckCircle2, Lock, X, Send, Star } from 'lucide-react'
+import { ClipboardList, Plus, RefreshCw, Download, FileText, Clock, CheckCircle2, Lock, X, Send, Star } from 'lucide-react'
 import { supabase } from './supabase'
 
 type Cohort = { id: string; name: string; year: number }
@@ -17,11 +17,6 @@ type Person = { id: string; full_name: string }
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-}
-function toLocalInput(value: string) {
-  const d = new Date(value)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor' | 'trainee' | null }) {
@@ -150,13 +145,6 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
     setSaving(false); setSuccess('تم تسليم التكليف بنجاح.')
     setFileValues(current => ({...current,[assignment.id]:null}))
     await loadData()
-  }
-
-  async function openSubmission(submission: Submission) {
-    if (!supabase || !submission.file_path) return
-    const { data, error: urlError } = await supabase.storage.from('assignment-submissions').createSignedUrl(submission.file_path,300)
-    if (urlError || !data?.signedUrl) { setError('تعذر فتح الملف: ' + (urlError?.message ?? 'الرابط غير متاح.')); return }
-    window.open(data.signedUrl,'_blank','noopener,noreferrer')
   }
 
   async function saveGrade(submission: Submission) {
