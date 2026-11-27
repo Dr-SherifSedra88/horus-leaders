@@ -23,8 +23,8 @@ const showTime = (value: string | null) => value
   ? new Date(value).toLocaleString('ar-EG', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })
   : '—'
 
-export default function AttendancePage({ role }: { role: 'admin' | 'instructor' | 'trainee' | null }) {
-  const canManage = role === 'admin' || role === 'instructor'
+export default function AttendancePage({ role }: { role: 'super_admin' | 'admin' | 'trainee' | null }) {
+  const canManage = role === 'admin' || role === 'super_admin'
   const [sessions, setSessions] = useState<Session[]>([])
   const [sessionId, setSessionId] = useState('')
   const [members, setMembers] = useState<Member[]>([])
