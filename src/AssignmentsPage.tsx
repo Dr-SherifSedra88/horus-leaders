@@ -179,7 +179,8 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
   }
 
   const visibleAssignments = assignments.filter(a => !selectedCohort || a.cohort_id === selectedCohort)
-  const statusText = (a: Assignment) => a.status === 'closed' ? 'مغلق' : a.status === 'draft' ? 'مسودة' : 'متاح للتسليم'
+  const isExpired = (a: Assignment) => Boolean(a.due_at && new Date(a.due_at).getTime() <= Date.now())
+  const statusText = (a: Assignment) => a.status === 'closed' ? 'مغلق' : a.status === 'draft' ? 'مسودة' : isExpired(a) ? 'انتهى موعد التسليم' : 'متاح للتسليم'
 
   return <section className="page-panel assignments-page">
     <div className="assignments-heading">
@@ -208,10 +209,11 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
       const cohort = cohorts.find(c=>c.id===assignment.cohort_id)
       const ownSubmission = submissions.find(s=>s.assignment_id===assignment.id && s.trainee_id===userId)
       const assignmentSubmissions = submissions.filter(s=>s.assignment_id===assignment.id)
-      const expired = Boolean(assignment.due_at && new Date(assignment.due_at).getTime() < Date.now())
-      const canSubmit = !canManage && assignment.status==='published' && !expired
+      const expired = isExpired(assignment)
+      const graded = ownSubmission?.grade !== null && ownSubmission?.grade !== undefined
+      const canSubmit = !canManage && assignment.status==='published' && !expired && !graded
       return <article className="assignment-card" key={assignment.id}>
-        <div className="assignment-card-top"><span className="cohort-status">{cohort?.name ?? 'الدفعة'}</span><span className={assignment.status==='closed'?'assignment-status closed':'assignment-status'}>{statusText(assignment)}</span></div>
+        <div className="assignment-card-top"><span className="cohort-status">{cohort?.name ?? 'الدفعة'}</span><span className={assignment.status==='closed' || expired?'assignment-status closed':'assignment-status'}>{!canManage && graded ? 'تم التقييم' : statusText(assignment)}</span></div>
         <h2>{assignment.title}</h2>
         {assignment.instructions && <div className="assignment-instructions">{assignment.instructions}</div>}
         <div className="assignment-meta"><span><Clock size={14}/>{assignment.due_at?'آخر موعد: '+formatDate(assignment.due_at):'بدون موعد نهائي'}</span><span><Star size={14}/>الدرجة النهائية: {assignment.max_grade}</span>{canManage&&<span><CheckCircle2 size={14}/>{assignmentSubmissions.length} تسليم</span>}</div>
@@ -223,8 +225,9 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
             <label>إجابة أو ملاحظة (اختياري)<textarea rows={2} value={answerValues[assignment.id]??ownSubmission?.answer_text??''} onChange={e=>setAnswerValues(v=>({...v,[assignment.id]:e.target.value}))} placeholder="اكتب أي توضيح للمدرب..."/></label>
             <button className="gold-btn" type="submit" disabled={saving}><Send size={15}/>{saving?'جارٍ التسليم...':ownSubmission?'تحديث التسليم':'تسليم التكليف'}</button>
           </form>}
-          {!canSubmit && assignment.status==='closed'&&<small className="deadline-note"><Lock size={13}/> تم إغلاق التسليم لهذا التكليف.</small>}
-          {!canSubmit && expired && assignment.status==='published'&&<small className="deadline-note"><Lock size={13}/> انتهى موعد التسليم.</small>}
+          {!canSubmit && graded && <small className="deadline-note"><Lock size={13}/> تم تقييم تسليمك وإغلاقه نهائيًا. لا يمكن تحديث العمل بعد التقييم.</small>}
+          {!canSubmit && assignment.status==='closed' && !graded && <small className="deadline-note"><Lock size={13}/> تم إغلاق التسليم لهذا التكليف.</small>}
+          {!canSubmit && expired && assignment.status==='published' && !graded && <small className="deadline-note"><Lock size={13}/> انتهى موعد التسليم تلقائيًا، ولم يعد التعديل أو التسليم متاحًا.</small>}
         </div>}
         {canManage && <div className="staff-submissions">
           {assignmentSubmissions.length===0 ? <p className="no-submissions">لم يرسل أي متدرب عمله حتى الآن.</p> : assignmentSubmissions.map(sub=>{
