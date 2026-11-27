@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { CalendarDays, Clock, MapPin, Link as LinkIcon, Plus, RefreshCw, Pencil, Trash2, X, Layers } from 'lucide-react'
+import { CalendarDays, Clock, MapPin, Link as LinkIcon, Plus, RefreshCw, Pencil, Trash2, X, Layers, Paperclip, Upload, Download, FileText } from 'lucide-react'
 import { supabase } from './supabase'
 
 type Cohort = { id: string; name: string; year: number }
+type Attachment = { id: string; session_id: string; file_path: string; file_name: string; mime_type: string | null; file_size: number | null; created_at: string }
 type Session = {
   id: string
   cohort_id: string
@@ -29,6 +30,8 @@ export default function SessionsPage({ role }: { role: 'admin' | 'instructor' | 
   const canManage = role === 'admin' || role === 'instructor'
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [selectedCohort, setSelectedCohort] = useState('')
   const [title, setTitle] = useState('')
   const [startsAt, setStartsAt] = useState('')
@@ -98,7 +101,19 @@ export default function SessionsPage({ role }: { role: 'admin' | 'instructor' | 
       .in('cohort_id', ids)
       .order('starts_at', { ascending: true })
     if (sessionError) setError('تعذر تحميل اللقاءات: ' + sessionError.message)
-    setSessions((sessionData ?? []) as Session[])
+    const loadedSessions = (sessionData ?? []) as Session[]
+    setSessions(loadedSessions)
+    if (loadedSessions.length) {
+      const { data: attachmentData, error: attachmentError } = await supabase
+        .from('session_attachments')
+        .select('id,session_id,file_path,file_name,mime_type,file_size,created_at')
+        .in('session_id', loadedSessions.map(item => item.id))
+        .order('created_at', { ascending: true })
+      if (attachmentError) setError('تم تحميل اللقاءات، لكن تعذر تحميل قائمة المرفقات: ' + attachmentError.message)
+      setAttachments((attachmentData ?? []) as Attachment[])
+    } else {
+      setAttachments([])
+    }
     setSelectedCohort(current => current && ids.includes(current) ? current : ids[0])
     setLoading(false)
   }, [canManage])
@@ -110,6 +125,7 @@ export default function SessionsPage({ role }: { role: 'admin' | 'instructor' | 
     setStartsAt('')
     setLocation('')
     setNotes('')
+    setSelectedFiles([])
     setEditingId('')
     setShowForm(false)
   }
@@ -140,16 +156,56 @@ export default function SessionsPage({ role }: { role: 'admin' | 'instructor' | 
       notes: notes.trim() || null
     }
     const result = editingId
-      ? await supabase.from('sessions').update(payload).eq('id', editingId)
-      : await supabase.from('sessions').insert(payload)
-    setSaving(false)
-    if (result.error) {
-      setError('لم نتمكن من حفظ اللقاء: ' + result.error.message)
+      ? await supabase.from('sessions').update(payload).eq('id', editingId).select('id,cohort_id').single()
+      : await supabase.from('sessions').insert(payload).select('id,cohort_id').single()
+    if (result.error || !result.data) {
+      setSaving(false)
+      setError('لم نتمكن من حفظ اللقاء: ' + (result.error?.message ?? 'لم يتم استرجاع بيانات اللقاء.'))
       return
     }
-    setSuccess(editingId ? 'تم تحديث اللقاء بنجاح.' : 'تمت إضافة اللقاء بنجاح.')
+    const sessionId = result.data.id as string
+    const cohortId = result.data.cohort_id as string
+    const uploadErrors: string[] = []
+    const userResult = await supabase.auth.getUser()
+    for (const file of selectedFiles) {
+      if (file.size > 20 * 1024 * 1024) {
+        uploadErrors.push(file.name + ': حجم الملف أكبر من 20 ميجابايت.')
+        continue
+      }
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100) || 'attachment'
+      const filePath = cohortId + '/' + sessionId + '/' + crypto.randomUUID() + '-' + safeName
+      const { error: uploadError } = await supabase.storage.from('session-attachments').upload(filePath, file, {
+        contentType: file.type || undefined,
+        upsert: false
+      })
+      if (uploadError) {
+        uploadErrors.push(file.name + ': ' + uploadError.message)
+        continue
+      }
+      const { error: metadataError } = await supabase.from('session_attachments').insert({
+        session_id: sessionId,
+        file_path: filePath,
+        file_name: file.name,
+        mime_type: file.type || null,
+        file_size: file.size,
+        uploaded_by: userResult.data.user?.id
+      })
+      if (metadataError) {
+        await supabase.storage.from('session-attachments').remove([filePath])
+        uploadErrors.push(file.name + ': تعذر تسجيل بيانات الملف - ' + metadataError.message)
+      }
+    }
+    setSaving(false)
     resetForm()
     await loadSessions()
+    if (uploadErrors.length) {
+      setError('تم حفظ اللقاء، لكن بعض الملفات لم تُرفع:\n' + uploadErrors.join('\n'))
+      setSuccess(editingId ? 'تم تحديث بيانات اللقاء.' : 'تم إنشاء اللقاء.')
+    } else {
+      setSuccess(editingId
+        ? (selectedFiles.length ? 'تم تحديث اللقاء ورفع المرفقات بنجاح.' : 'تم تحديث اللقاء بنجاح.')
+        : (selectedFiles.length ? 'تمت إضافة اللقاء ورفع المرفقات بنجاح.' : 'تمت إضافة اللقاء بنجاح.'))
+    }
   }
 
   async function deleteSession(sessionId: string) {
@@ -164,6 +220,35 @@ export default function SessionsPage({ role }: { role: 'admin' | 'instructor' | 
     }
     setSuccess('تم حذف اللقاء.')
     await loadSessions()
+  }
+
+
+  async function openAttachment(attachment: Attachment) {
+    if (!supabase) return
+    const { data, error: urlError } = await supabase.storage.from('session-attachments').createSignedUrl(attachment.file_path, 300)
+    if (urlError || !data?.signedUrl) {
+      setError('تعذر فتح الملف: ' + (urlError?.message ?? 'الرابط غير متاح.'))
+      return
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  async function deleteAttachment(attachment: Attachment) {
+    if (!supabase || !canManage) return
+    if (!window.confirm('هل تريد حذف الملف "' + attachment.file_name + '"؟')) return
+    setError('')
+    const { error: storageError } = await supabase.storage.from('session-attachments').remove([attachment.file_path])
+    if (storageError) {
+      setError('تعذر حذف الملف من مساحة التخزين: ' + storageError.message)
+      return
+    }
+    const { error: metadataError } = await supabase.from('session_attachments').delete().eq('id', attachment.id)
+    if (metadataError) {
+      setError('تم حذف الملف لكن تعذر حذف بياناته: ' + metadataError.message)
+      return
+    }
+    setAttachments(current => current.filter(item => item.id !== attachment.id))
+    setSuccess('تم حذف المرفق.')
   }
 
   const visibleSessions = sessions.filter(session => !selectedCohort || session.cohort_id === selectedCohort)
@@ -202,6 +287,12 @@ export default function SessionsPage({ role }: { role: 'admin' | 'instructor' | 
       <label>التاريخ والوقت<input type="datetime-local" value={startsAt} onChange={event => setStartsAt(event.target.value)} required/></label>
       <label>المكان أو رابط اللقاء<input value={location} onChange={event => setLocation(event.target.value)} placeholder="عنوان المكان أو رابط Zoom / Google Meet"/></label>
       <label>الوصف والمواد التعليمية<textarea value={notes} onChange={event => setNotes(event.target.value)} rows={4} placeholder="اكتب وصف اللقاء، التعليمات، وروابط ملفات PDF أو الفيديوهات..."/></label>
+      <label className="session-file-picker">إرفاق ملفات (PDF، Word، Excel، PowerPoint، صور أو نص)
+        <span><Upload size={16}/> اختر ملفًا أو أكثر</span>
+        <input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.webp,.gif" onChange={event => setSelectedFiles(Array.from(event.target.files ?? []))}/>
+        <small>الحد الأقصى 20 MB لكل ملف.</small>
+        {selectedFiles.length > 0 && <em>{selectedFiles.map(file => file.name).join('، ')}</em>}
+      </label>
       <div className="session-form-actions"><button className="gold-btn" type="submit" disabled={saving || cohorts.length === 0}>{saving ? 'جارٍ الحفظ...' : editingId ? 'حفظ التعديلات' : 'نشر اللقاء'}</button><button type="button" className="outline-btn" onClick={resetForm}>إلغاء</button></div>
     </form>}
 
@@ -219,6 +310,15 @@ export default function SessionsPage({ role }: { role: 'admin' | 'instructor' | 
             <p className="session-time"><Clock size={15}/>{displayDate(session.starts_at)}</p>
             {session.location_or_link && <p className="session-location"><MapPin size={15}/><span>{session.location_or_link}</span></p>}
             {session.notes && <div className="session-notes">{session.notes.split(/(https?:\/\/[^\s]+)/g).map((part, index) => /^https?:\/\//.test(part) ? <a key={index} href={part} target="_blank" rel="noreferrer">{part} <LinkIcon size={12}/></a> : <span key={index}>{part}</span>)}</div>}
+            {attachments.filter(file => file.session_id === session.id).length > 0 && <div className="session-attachments">
+              <strong><Paperclip size={14}/> الملفات المرفقة</strong>
+              {attachments.filter(file => file.session_id === session.id).map(file => <div className="session-attachment" key={file.id}>
+                <FileText size={16}/>
+                <span>{file.file_name}<small>{file.file_size ? (file.file_size / (1024 * 1024)).toFixed(2) + ' MB' : 'ملف مرفق'}</small></span>
+                <button type="button" onClick={() => void openAttachment(file)} aria-label="فتح الملف"><Download size={15}/></button>
+                {canManage && <button type="button" onClick={() => void deleteAttachment(file)} aria-label="حذف الملف"><Trash2 size={14}/></button>}
+              </div>)}
+            </div>}
           </div>
         </article>
       })}
