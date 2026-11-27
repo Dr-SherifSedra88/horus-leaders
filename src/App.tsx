@@ -13,6 +13,8 @@ export default function App() {
   const [page,setPage] = useState<Page>('home')
   const [menu,setMenu] = useState(false)
   const [showLogin,setShowLogin] = useState(false)
+  const [registerMode,setRegisterMode] = useState(false)
+  const [fullName,setFullName] = useState('')
   const [email,setEmail] = useState('')
   const [password,setPassword] = useState('')
   const [showPassword,setShowPassword] = useState(false)
@@ -66,6 +68,34 @@ export default function App() {
     if (data.user) await loadProfile(data.user.id)
   }
 
+  async function signUp(e: FormEvent) {
+    e.preventDefault()
+    if (!supabase) { setNotice('تعذر الاتصال بقاعدة البيانات.'); return }
+    const {data,error} = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { full_name: fullName.trim() } }
+    })
+    if (error) { setNotice('لم نتمكن من إنشاء الحساب: ' + error.message); return }
+    setPassword('')
+    setFullName('')
+    if (data.session && data.user) {
+      setSignedIn(true)
+      await loadProfile(data.user.id)
+      setNotice('تم إنشاء حساب المتدرب وتسجيل الدخول بنجاح.')
+      setShowLogin(false)
+    } else {
+      setRegisterMode(false)
+      setNotice('تم إنشاء الحساب. افتح رسالة التأكيد التي وصلتك على البريد الإلكتروني، وبعدها سجّل الدخول.')
+    }
+  }
+
+  function openAuth(register = false) {
+    setRegisterMode(register)
+    setNotice('')
+    setShowLogin(true)
+  }
+
   const current = nav.find(n=>n.id===page)!
   return <div className="app-shell">
     <aside className={`sidebar ${menu?'open':''}`}>
@@ -76,10 +106,10 @@ export default function App() {
     </aside>
     {menu&&<button className="scrim" onClick={()=>setMenu(false)} aria-label="إغلاق القائمة"/>}
     <main className="main-area">
-      <header className="topbar"><button className="icon-btn mobile-menu" onClick={()=>setMenu(true)} aria-label="القائمة"><Menu/></button><div className="breadcrumb">Horus Leaders <span>/</span> {current.label}</div><div className="top-actions"><button className="icon-btn" aria-label="الإشعارات"><Bell size={19}/><i/></button>{signedIn ? <><span className="breadcrumb">{userName || (userRole==='admin'?'مدير المنصة':userRole==='instructor'?'مدرب':'متدرب')} · {userRole==='admin'?'Admin':userRole==='instructor'?'Instructor':'Trainee'}</span><button className="login-btn" onClick={signOut}>تسجيل الخروج</button></> : <button className="login-btn" onClick={()=>setShowLogin(true)}><LogIn size={17}/> دخول المتدربين</button>}</div></header>
+      <header className="topbar"><button className="icon-btn mobile-menu" onClick={()=>setMenu(true)} aria-label="القائمة"><Menu/></button><div className="breadcrumb">Horus Leaders <span>/</span> {current.label}</div><div className="top-actions"><button className="icon-btn" aria-label="الإشعارات"><Bell size={19}/><i/></button>{signedIn ? <><span className="breadcrumb">{userName || (userRole==='admin'?'مدير المنصة':userRole==='instructor'?'مدرب':'متدرب')} · {userRole==='admin'?'Admin':userRole==='instructor'?'Instructor':'Trainee'}</span><button className="login-btn" onClick={signOut}>تسجيل الخروج</button></> : <><button className="login-btn" onClick={()=>openAuth(false)}><LogIn size={17}/> دخول المتدربين</button><button className="login-btn register-top-btn" onClick={()=>openAuth(true)}>إنشاء حساب</button></>}</div></header>
       <div className="content">
         {page==='home'&&<>
-          <section className="welcome"><div className="welcome-copy"><span className="eyebrow">LEADERS PREPARATION SECTOR</span><h1>أهلاً بيك في <em>Horus Leaders</em></h1><p>مساحتك للتعلم والتدريب ومتابعة رحلتك في إعداد القادة.</p><button className="gold-btn" onClick={()=>setShowLogin(true)}>ابدأ رحلتك <ChevronLeft size={17}/></button></div><div className="welcome-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="compass"><Anchor size={76} strokeWidth={1.1}/></div><span className="star s1">✦</span><span className="star s2">✧</span></div></section>
+          <section className="welcome"><div className="welcome-copy"><span className="eyebrow">LEADERS PREPARATION SECTOR</span><h1>أهلاً بيك في <em>Horus Leaders</em></h1><p>مساحتك للتعلم والتدريب ومتابعة رحلتك في إعداد القادة.</p><button className="gold-btn" onClick={()=>openAuth(false)}>ابدأ رحلتك <ChevronLeft size={17}/></button></div><div className="welcome-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="compass"><Anchor size={76} strokeWidth={1.1}/></div><span className="star s1">✦</span><span className="star s2">✧</span></div></section>
           <div className="section-heading"><div><span className="eyebrow">YOUR TRAINING SPACE</span><h2>كل اللي تحتاجه في مكان واحد</h2></div><span className="live-pill"><i/> مساحة التدريب</span></div>
           <section className="feature-grid">
             <Feature icon={<BookOpen/>} title="مكتبة المحاضرات" desc="المحتوى الأساسي والمراجع متاحة للرجوع إليها في أي وقت." tag="تعلم" onClick={()=>setPage('library')}/>
@@ -93,7 +123,7 @@ export default function App() {
         <footer><span>© 2026 Horus Leaders</span><span>مجموعة حورس البحرية – قطاع إعداد قادة</span></footer>
       </div>
     </main>
-    {showLogin&&<div className="modal-backdrop" onClick={()=>setShowLogin(false)}><div className="login-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowLogin(false)}><X/></button><div className="modal-brand"><div className="brand-mark"><Anchor/></div><span className="eyebrow">WELCOME BACK</span><h2>تسجيل الدخول</h2><p>ادخل على حسابك لمتابعة رحلتك التدريبية</p></div><form onSubmit={signIn}><label>البريد الإلكتروني</label><input type="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/><label>كلمة المرور</label><div className="password-field"><input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required/><button type="button" className="password-toggle" onClick={()=>setShowPassword(value=>!value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} title={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div><button className="gold-btn full" type="submit">تسجيل الدخول <ChevronLeft size={17}/></button></form>{notice&&<div className="notice">{notice}</div>}<small className="privacy-note">التسجيل بالإيميل وكلمة المرور فقط. لا نطلب مستندات إثبات هوية.</small></div></div>}
+    {showLogin&&<div className="modal-backdrop" onClick={()=>setShowLogin(false)}><div className="login-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowLogin(false)}><X/></button><div className="modal-brand"><div className="brand-mark"><Anchor/></div><span className="eyebrow">{registerMode?'JOIN HORUS LEADERS':'WELCOME BACK'}</span><h2>{registerMode?'إنشاء حساب متدرب':'تسجيل الدخول'}</h2><p>{registerMode?'سجّل بياناتك للانضمام إلى المنصة':'ادخل على حسابك لمتابعة رحلتك التدريبية'}</p></div><form onSubmit={registerMode?signUp:signIn}>{registerMode&&<><label>الاسم بالكامل</label><input type="text" placeholder="الاسم كما سيظهر في المنصة" value={fullName} onChange={e=>setFullName(e.target.value)} required maxLength={100}/></>}<label>البريد الإلكتروني</label><input type="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/><label>كلمة المرور</label><div className="password-field"><input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8}/><button type="button" className="password-toggle" onClick={()=>setShowPassword(value=>!value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} title={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div><button className="gold-btn full" type="submit">{registerMode?'إنشاء الحساب':'تسجيل الدخول'} <ChevronLeft size={17}/></button></form>{notice&&<div className="notice">{notice}</div>}<button className="auth-switch" onClick={()=>{setRegisterMode(value=>!value);setNotice('')}}>{registerMode?'عندك حساب بالفعل؟ سجّل الدخول':'مستخدم جديد؟ أنشئ حساب متدرب'}</button><small className="privacy-note">كل حساب جديد يحصل تلقائيًا على صلاحية متدرب فقط. لا نطلب مستندات إثبات هوية.</small></div></div>}
   </div>
 }
 
