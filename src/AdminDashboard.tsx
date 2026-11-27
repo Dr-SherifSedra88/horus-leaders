@@ -10,7 +10,7 @@ type Cohort = {
   starts_on: string | null
   ends_on: string | null
 }
-type Trainee = { id: string; full_name: string; email: string | null; role: 'admin' | 'instructor' | 'trainee' }
+type Trainee = { id: string; full_name: string; email: string | null; role: 'super_admin' | 'admin' | 'trainee' }
 type Enrollment = { cohort_id: string; trainee_id: string }
 
 export default function AdminDashboard() {
