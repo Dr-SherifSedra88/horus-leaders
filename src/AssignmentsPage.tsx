@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ClipboardList, Plus, RefreshCw, Download, FileText, Clock, CheckCircle2, Lock, X, Send, Star } from 'lucide-react'
+import { ClipboardList, Plus, RefreshCw, Download, FileText, Clock, CheckCircle2, Lock, X, Send, Star, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from './supabase'
 
 type Cohort = { id: string; name: string; year: number }
@@ -28,6 +28,7 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
   const [selectedCohort, setSelectedCohort] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -91,21 +92,55 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
   useEffect(() => { void loadData() }, [loadData])
 
   function resetForm() {
-    setTitle(''); setInstructions(''); setDueAt(''); setMaxGrade('100'); setShowForm(false)
+    setTitle(''); setInstructions(''); setDueAt(''); setMaxGrade('100'); setShowForm(false); setEditingAssignment(null)
   }
 
-  async function createAssignment(event: FormEvent) {
+  function startEditing(assignment: Assignment) {
+    setEditingAssignment(assignment)
+    setTitle(assignment.title)
+    setInstructions(assignment.instructions ?? '')
+    setDueAt(assignment.due_at ? new Date(new Date(assignment.due_at).getTime() - new Date(assignment.due_at).getTimezoneOffset() * 60000).toISOString().slice(0,16) : '')
+    setMaxGrade(String(assignment.max_grade))
+    setShowForm(true)
+    setError(''); setSuccess('')
+  }
+
+  async function saveAssignment(event: FormEvent) {
     event.preventDefault()
     if (!supabase || !selectedCohort || !title.trim()) return
+    const parsedMaxGrade = Number(maxGrade)
+    if (!Number.isFinite(parsedMaxGrade) || parsedMaxGrade <= 0 || parsedMaxGrade > 1000) { setError('اكتب درجة نهائية صحيحة أكبر من صفر وحتى 1000.'); return }
     setSaving(true); setError(''); setSuccess('')
-    const { error: saveError } = await supabase.from('assignments').insert({
-      cohort_id: selectedCohort, title: title.trim(), instructions: instructions.trim() || null,
-      due_at: dueAt ? new Date(dueAt).toISOString() : null, max_grade: Number(maxGrade) || 100,
-      status: 'published', created_by: userId
-    })
+    const values = {
+      title: title.trim(), instructions: instructions.trim() || null,
+      due_at: dueAt ? new Date(dueAt).toISOString() : null, max_grade: parsedMaxGrade
+    }
+    const result = editingAssignment
+      ? await supabase.from('assignments').update(values).eq('id', editingAssignment.id)
+      : await supabase.from('assignments').insert({ ...values, cohort_id: selectedCohort, status: 'published', created_by: userId })
     setSaving(false)
-    if (saveError) { setError('تعذر نشر التكليف: ' + saveError.message); return }
-    resetForm(); setSuccess('تم نشر التكليف للمتدربين في الدفعة بنجاح.')
+    if (result.error) { setError((editingAssignment ? 'تعذر تعديل التكليف: ' : 'تعذر نشر التكليف: ') + result.error.message); return }
+    const wasEditing = Boolean(editingAssignment)
+    resetForm(); setSuccess(wasEditing ? 'تم حفظ تعديلات التكليف بنجاح.' : 'تم نشر التكليف للمتدربين في الدفعة بنجاح.')
+    await loadData()
+  }
+
+  async function deleteAssignment(assignment: Assignment) {
+    if (!supabase || !canManage) return
+    const related = submissions.filter(s => s.assignment_id === assignment.id)
+    const confirmed = window.confirm(`هل أنت متأكد من حذف التكليف «${assignment.title}» نهائيًا؟ سيتم حذف ${related.length} تسليم مرتبط به، بما في ذلك الدرجات والملاحظات. لا يمكن التراجع عن هذا الإجراء.`)
+    if (!confirmed) return
+    setSaving(true); setError(''); setSuccess('')
+    const { error: deleteError } = await supabase.from('assignments').delete().eq('id', assignment.id)
+    if (deleteError) { setSaving(false); setError('تعذر حذف التكليف: ' + deleteError.message); return }
+    const paths = related.map(s => s.file_path).filter((p): p is string => Boolean(p))
+    if (paths.length) {
+      const { error: storageError } = await supabase.storage.from('assignment-submissions').remove(paths)
+      if (storageError) setError('تم حذف التكليف والتسليمات، لكن تعذر تنظيف بعض الملفات المخزنة: ' + storageError.message)
+    }
+    setSaving(false)
+    if (!error) setSuccess('تم حذف التكليف والتسليمات المرتبطة به نهائيًا.')
+    if (editingAssignment?.id === assignment.id) resetForm()
     await loadData()
   }
 
@@ -193,14 +228,14 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
       <label>الدفعة<select value={selectedCohort} onChange={e=>setSelectedCohort(e.target.value)}>{cohorts.map(c=><option key={c.id} value={c.id}>{c.name} · {c.year}</option>)}</select></label>
       {canManage && <button className="gold-btn" onClick={()=>{resetForm();setShowForm(true)}}><Plus size={16}/> إنشاء تكليف</button>}
     </div>}
-    {canManage && showForm && <form className="assignment-form" onSubmit={createAssignment}>
-      <div className="session-form-heading"><strong>تكليف جديد</strong><button type="button" className="session-close" onClick={resetForm}><X size={18}/></button></div>
-      <label>الدفعة<select value={selectedCohort} onChange={e=>setSelectedCohort(e.target.value)} required>{cohorts.map(c=><option key={c.id} value={c.id}>{c.name} · {c.year}</option>)}</select></label>
+    {canManage && showForm && <form className="assignment-form" onSubmit={saveAssignment}>
+      <div className="session-form-heading"><strong>{editingAssignment ? 'تعديل التكليف' : 'تكليف جديد'}</strong><button type="button" className="session-close" onClick={resetForm}><X size={18}/></button></div>
+      <label>الدفعة<select value={editingAssignment?.cohort_id ?? selectedCohort} onChange={e=>setSelectedCohort(e.target.value)} required disabled={Boolean(editingAssignment)}>{cohorts.map(c=><option key={c.id} value={c.id}>{c.name} · {c.year}</option>)}</select></label>
       <label>عنوان التكليف<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={150} placeholder="مثال: إعداد عرض تقديمي عن القيادة" required/></label>
       <label className="assignment-wide">التفاصيل والتعليمات<textarea value={instructions} onChange={e=>setInstructions(e.target.value)} rows={5} placeholder="اكتب المطلوب بالتفصيل، خطوات التنفيذ، وأي ملاحظات مهمة..."/></label>
       <label>آخر موعد للتسليم<input type="datetime-local" value={dueAt} onChange={e=>setDueAt(e.target.value)}/><small>اتركه فارغًا إذا لم يوجد موعد نهائي.</small></label>
       <label>الدرجة النهائية<input type="number" min="1" max="1000" step="0.5" value={maxGrade} onChange={e=>setMaxGrade(e.target.value)} required/></label>
-      <div className="assignment-form-actions"><button className="gold-btn" type="submit" disabled={saving || !cohorts.length}>{saving?'جارٍ النشر...':'نشر التكليف الآن'}</button><button className="outline-btn" type="button" onClick={resetForm}>إلغاء</button></div>
+      <div className="assignment-form-actions"><button className="gold-btn" type="submit" disabled={saving || !cohorts.length}>{saving?'جارٍ الحفظ...':editingAssignment?'حفظ التعديلات':'نشر التكليف الآن'}</button><button className="outline-btn" type="button" onClick={resetForm}>إلغاء</button></div>
     </form>}
     {loading ? <div className="admin-empty">جارٍ تحميل التكليفات...</div>
     : cohorts.length === 0 ? <div className="empty-state"><div className="empty-icon"><ClipboardList size={30}/></div><b>{canManage?'لا توجد دفعات متاحة':'لا توجد دفعة مرتبطة بحسابك'}</b><span>{canManage?'أنشئ دفعة أولًا من لوحة الإدارة.':'ستظهر تكليفات دفعتك هنا بعد تسجيلك بها بواسطة الإدارة.'}</span></div>
@@ -214,6 +249,7 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
       const canSubmit = !canManage && assignment.status==='published' && !expired && !graded
       return <article className="assignment-card" key={assignment.id}>
         <div className="assignment-card-top"><span className="cohort-status">{cohort?.name ?? 'الدفعة'}</span><span className={assignment.status==='closed' || expired?'assignment-status closed':'assignment-status'}>{!canManage && graded ? 'تم التقييم' : statusText(assignment)}</span></div>
+      {canManage && <div className="assignment-admin-actions"><button type="button" className="outline-btn" disabled={saving} onClick={()=>startEditing(assignment)}><Pencil size={14}/> تعديل التكليف</button><button type="button" className="outline-btn danger-action" disabled={saving} onClick={()=>void deleteAssignment(assignment)}><Trash2 size={14}/> حذف التكليف</button></div>}
         <h2>{assignment.title}</h2>
         {assignment.instructions && <div className="assignment-instructions">{assignment.instructions}</div>}
         <div className="assignment-meta"><span><Clock size={14}/>{assignment.due_at?'آخر موعد: '+formatDate(assignment.due_at):'بدون موعد نهائي'}</span><span><Star size={14}/>الدرجة النهائية: {assignment.max_grade}</span>{canManage&&<span><CheckCircle2 size={14}/>{assignmentSubmissions.length} تسليم</span>}</div>
