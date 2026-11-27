@@ -110,6 +110,7 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
     if (!supabase || !selectedCohort || !title.trim()) return
     const parsedMaxGrade = Number(maxGrade)
     if (!Number.isFinite(parsedMaxGrade) || parsedMaxGrade <= 0 || parsedMaxGrade > 1000) { setError('اكتب درجة نهائية صحيحة أكبر من صفر وحتى 1000.'); return }
+    if (editingAssignment && submissions.some(sub => sub.assignment_id === editingAssignment.id && sub.grade !== null && sub.grade > parsedMaxGrade)) { setError('لا يمكن تقليل الدرجة النهائية عن درجة سبق منحها لأحد المتدربين.'); return }
     setSaving(true); setError(''); setSuccess('')
     const values = {
       title: title.trim(), instructions: instructions.trim() || null,
@@ -134,12 +135,14 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
     const { error: deleteError } = await supabase.from('assignments').delete().eq('id', assignment.id)
     if (deleteError) { setSaving(false); setError('تعذر حذف التكليف: ' + deleteError.message); return }
     const paths = related.map(s => s.file_path).filter((p): p is string => Boolean(p))
+    let cleanupMessage = ''
     if (paths.length) {
       const { error: storageError } = await supabase.storage.from('assignment-submissions').remove(paths)
-      if (storageError) setError('تم حذف التكليف والتسليمات، لكن تعذر تنظيف بعض الملفات المخزنة: ' + storageError.message)
+      if (storageError) cleanupMessage = ' تم حذف التكليف والتسليمات، لكن تعذر تنظيف بعض الملفات المخزنة: ' + storageError.message
     }
     setSaving(false)
-    if (!error) setSuccess('تم حذف التكليف والتسليمات المرتبطة به نهائيًا.')
+    if (cleanupMessage) setError(cleanupMessage)
+    else setSuccess('تم حذف التكليف والتسليمات المرتبطة به نهائيًا.')
     if (editingAssignment?.id === assignment.id) resetForm()
     await loadData()
   }
