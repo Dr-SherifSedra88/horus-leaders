@@ -139,3 +139,6 @@ grant update (full_name, phone) on table public.profiles to authenticated;
 
 -- Admin role assignment is a manual, trusted-owner operation in the SQL editor only.
 -- Never expose the service_role key or allow users to set their own role.
+
+-- Explicit API grants: RLS still decides which rows a signed-in user may access.
+grant select on table public.profiles to authenticated;
