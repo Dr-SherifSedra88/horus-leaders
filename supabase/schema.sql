@@ -1,5 +1,5 @@
 -- Horus Leaders: initial database schema (run in Supabase SQL Editor)
--- Auth is email/password. Public signup should be enabled in Supabase Auth.
+-- Email/password auth. New profiles are always created as trainee.
 create extension if not exists pgcrypto;
 
 create type public.app_role as enum ('admin','instructor','trainee');
@@ -92,9 +92,13 @@ create table public.attendance (
   unique(session_id, trainee_id)
 );
 
--- Create a profile automatically after email signup.
+-- Profile creation is server-side; the role is deliberately not read from user metadata.
 create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
 begin
   insert into public.profiles (id, full_name)
   values (new.id, coalesce(new.raw_user_meta_data->>'full_name',''));
@@ -106,7 +110,8 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
 for each row execute procedure public.handle_new_user();
 
--- RLS is enabled now; detailed role policies will be added before production launch.
+-- Enable RLS on every application table. Tables without policies remain inaccessible
+-- to authenticated users until explicit least-privilege policies are added.
 alter table public.profiles enable row level security;
 alter table public.cohorts enable row level security;
 alter table public.enrollments enable row level security;
@@ -116,6 +121,21 @@ alter table public.submissions enable row level security;
 alter table public.sessions enable row level security;
 alter table public.attendance enable row level security;
 
--- Safe starter policies: users can read/update their own profile only.
-create policy "profiles_select_own" on public.profiles for select using (auth.uid() = id);
-create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+-- A user can read their own profile and edit only their own basic contact fields.
+create policy "profiles_select_own"
+on public.profiles for select
+to authenticated
+using (auth.uid() = id);
+
+create policy "profiles_update_own"
+on public.profiles for update
+to authenticated
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+-- Critical: do not grant table-wide UPDATE. Users cannot change role, id, or created_at.
+revoke update on table public.profiles from anon, authenticated;
+grant update (full_name, phone) on table public.profiles to authenticated;
+
+-- Admin role assignment is a manual, trusted-owner operation in the SQL editor only.
+-- Never expose the service_role key or allow users to set their own role.
