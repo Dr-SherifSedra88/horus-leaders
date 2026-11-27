@@ -282,7 +282,7 @@ export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor'
               </div>
             </div>
           })}
-          {assignment.status==='published'&&<button className="outline-btn close-assignment-btn" type="button" onClick={()=>void closeAssignment(assignment)}><Lock size={14}/> إغلاق التسليم</button>}
+          {assignment.status==='published'&&!expired&&<button className="outline-btn close-assignment-btn" type="button" onClick={()=>void closeAssignment(assignment)}><Lock size={14}/> إغلاق التسليم</button>}
         </div>}
       </article>
     })}</div>}
