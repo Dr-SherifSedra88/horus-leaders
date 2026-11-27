@@ -54,7 +54,7 @@ export default function AttendancePage({ role }: { role: 'admin' | 'instructor' 
     if (!supabase || !sessionId) { setMembers([]); setMyRecord(null); return }
     setError('')
     const { data: attendanceData, error: attendanceError } = await supabase.from('attendance')
-      .select('id,session_id,trainee_id,status,note,recorded_at,checkin_at,arrival_at,late_minutes,excuse_reason,excuse_emergency,excuse_status')
+      .select('id,session_id,trainee_id,status,note,recorded_at,checkin_at,arrival_at,late_minutes,excuse_reason,excuse_emergency,excuse_status,approved_at')
       .eq('session_id', sessionId)
     if (attendanceError) { setError('تعذر تحميل سجل الحضور: ' + attendanceError.message); return }
     const records = (attendanceData ?? []) as Attendance[]
