@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, CalendarCheck, CheckCircle2, Clock3, RefreshCw, Send, ShieldCheck, UserCheck, XCircle } from 'lucide-react'
+import { CalendarCheck, CheckCircle2, Clock3, RefreshCw, Send, UserCheck, XCircle } from 'lucide-react'
 import { supabase } from './supabase'
 
 type Session = { id: string; cohort_id: string; title: string; starts_at: string }
 type Attendance = {
   id: string; session_id: string; trainee_id: string; status: string; note: string | null
   recorded_at: string; checkin_at: string | null; arrival_at: string | null; late_minutes: number
-  excuse_reason: string | null; excuse_emergency: boolean; excuse_status: string
+  excuse_reason: string | null; excuse_emergency: boolean; excuse_status: string; approved_at: string | null
 }
 type Member = { id: string; full_name: string; record: Attendance | null }
 
