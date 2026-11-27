@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Anchor, BookOpen, CalendarCheck, ClipboardList, Home, LogIn, Menu, Megaphone, Settings, ShieldCheck, Users, X, ChevronLeft, FileText, Award, Bell } from 'lucide-react'
+import { Anchor, BookOpen, CalendarCheck, ClipboardList, Home, LogIn, Menu, Megaphone, Settings, ShieldCheck, Users, X, ChevronLeft, FileText, Award, Bell, Eye, EyeOff } from 'lucide-react'
 import { supabase } from './supabase'
 
 type Page = 'home' | 'library' | 'assignments' | 'attendance' | 'cohort' | 'admin'
@@ -13,6 +13,7 @@ export default function App() {
   const [showLogin,setShowLogin] = useState(false)
   const [email,setEmail] = useState('')
   const [password,setPassword] = useState('')
+  const [showPassword,setShowPassword] = useState(false)
   const [notice,setNotice] = useState('')
   const [userRole,setUserRole] = useState<'admin'|'instructor'|'trainee'|null>(null)
   const [userName,setUserName] = useState('')
@@ -90,7 +91,7 @@ export default function App() {
         <footer><span>© 2026 Horus Leaders</span><span>مجموعة حورس البحرية – قطاع إعداد قادة</span></footer>
       </div>
     </main>
-    {showLogin&&<div className="modal-backdrop" onClick={()=>setShowLogin(false)}><div className="login-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowLogin(false)}><X/></button><div className="modal-brand"><div className="brand-mark"><Anchor/></div><span className="eyebrow">WELCOME BACK</span><h2>تسجيل الدخول</h2><p>ادخل على حسابك لمتابعة رحلتك التدريبية</p></div><form onSubmit={signIn}><label>البريد الإلكتروني</label><input type="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/><label>كلمة المرور</label><input type="password" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required/><button className="gold-btn full" type="submit">تسجيل الدخول <ChevronLeft size={17}/></button></form>{notice&&<div className="notice">{notice}</div>}<small className="privacy-note">التسجيل بالإيميل وكلمة المرور فقط. لا نطلب مستندات إثبات هوية.</small></div></div>}
+    {showLogin&&<div className="modal-backdrop" onClick={()=>setShowLogin(false)}><div className="login-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowLogin(false)}><X/></button><div className="modal-brand"><div className="brand-mark"><Anchor/></div><span className="eyebrow">WELCOME BACK</span><h2>تسجيل الدخول</h2><p>ادخل على حسابك لمتابعة رحلتك التدريبية</p></div><form onSubmit={signIn}><label>البريد الإلكتروني</label><input type="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/><label>كلمة المرور</label><div className="password-field"><input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required/><button type="button" className="password-toggle" onClick={()=>setShowPassword(value=>!value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} title={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div><button className="gold-btn full" type="submit">تسجيل الدخول <ChevronLeft size={17}/></button></form>{notice&&<div className="notice">{notice}</div>}<small className="privacy-note">التسجيل بالإيميل وكلمة المرور فقط. لا نطلب مستندات إثبات هوية.</small></div></div>}
   </div>
 }
 
