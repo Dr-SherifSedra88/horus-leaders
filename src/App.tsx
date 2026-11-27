@@ -14,7 +14,6 @@ export default function App() {
   const [email,setEmail] = useState('')
   const [password,setPassword] = useState('')
   const [notice,setNotice] = useState('')
-  const [role,setRole] = useState<'trainee'|'instructor'>('trainee')
   const [userRole,setUserRole] = useState<'admin'|'instructor'|'trainee'|null>(null)
   const [userName,setUserName] = useState('')
   const [signedIn,setSignedIn] = useState(false)
@@ -91,7 +90,7 @@ export default function App() {
         <footer><span>© 2026 Horus Leaders</span><span>مجموعة حورس البحرية – قطاع إعداد قادة</span></footer>
       </div>
     </main>
-    {showLogin&&<div className="modal-backdrop" onClick={()=>setShowLogin(false)}><div className="login-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowLogin(false)}><X/></button><div className="modal-brand"><div className="brand-mark"><Anchor/></div><span className="eyebrow">WELCOME BACK</span><h2>تسجيل الدخول</h2><p>ادخل على حسابك لمتابعة رحلتك التدريبية</p></div><div className="role-switch"><button className={role==='trainee'?'selected':''} onClick={()=>setRole('trainee')}><GraduationCap size={17}/> متدرب</button><button className={role==='instructor'?'selected':''} onClick={()=>setRole('instructor')}><ShieldCheck size={17}/> مدرب / إدارة</button></div><form onSubmit={signIn}><label>البريد الإلكتروني</label><input type="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/><label>كلمة المرور</label><input type="password" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required/><button className="gold-btn full" type="submit">تسجيل الدخول <ChevronLeft size={17}/></button></form>{notice&&<div className="notice">{notice}</div>}<small className="privacy-note">التسجيل بالإيميل وكلمة المرور فقط. لا نطلب مستندات إثبات هوية.</small></div></div>}
+    {showLogin&&<div className="modal-backdrop" onClick={()=>setShowLogin(false)}><div className="login-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowLogin(false)}><X/></button><div className="modal-brand"><div className="brand-mark"><Anchor/></div><span className="eyebrow">WELCOME BACK</span><h2>تسجيل الدخول</h2><p>ادخل على حسابك لمتابعة رحلتك التدريبية</p></div><form onSubmit={signIn}><label>البريد الإلكتروني</label><input type="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/><label>كلمة المرور</label><input type="password" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required/><button className="gold-btn full" type="submit">تسجيل الدخول <ChevronLeft size={17}/></button></form>{notice&&<div className="notice">{notice}</div>}<small className="privacy-note">التسجيل بالإيميل وكلمة المرور فقط. لا نطلب مستندات إثبات هوية.</small></div></div>}
   </div>
 }
 
