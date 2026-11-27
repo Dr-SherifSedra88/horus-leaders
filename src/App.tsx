@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Anchor, BookOpen, CalendarCheck, ClipboardList, GraduationCap, Home, LogIn, Menu, Megaphone, Settings, ShieldCheck, Users, X, ChevronLeft, FileText, Award, Bell } from 'lucide-react'
 import { supabase } from './supabase'
 
@@ -15,12 +15,53 @@ export default function App() {
   const [password,setPassword] = useState('')
   const [notice,setNotice] = useState('')
   const [role,setRole] = useState<'trainee'|'instructor'>('trainee')
+  const [userRole,setUserRole] = useState<'admin'|'instructor'|'trainee'|null>(null)
+  const [userName,setUserName] = useState('')
+  const [signedIn,setSignedIn] = useState(false)
+
+  async function loadProfile(userId: string) {
+    if (!supabase) return
+    const {data,error} = await supabase.from('profiles').select('role, full_name').eq('id',userId).single()
+    if (error) { setNotice('تم تسجيل الدخول، لكن تعذر تحميل صلاحيات الحساب.'); return }
+    setUserRole(data.role)
+    setUserName(data.full_name || '')
+  }
+
+  useEffect(() => {
+    if (!supabase) return
+    supabase.auth.getSession().then(({data}) => {
+      const session = data.session
+      setSignedIn(Boolean(session))
+      if (session?.user) void loadProfile(session.user.id)
+    })
+    const {data:{subscription}} = supabase.auth.onAuthStateChange((_event,session) => {
+      setSignedIn(Boolean(session))
+      if (session?.user) {
+        Promise.resolve().then(() => loadProfile(session.user.id))
+      } else {
+        setUserRole(null)
+        setUserName('')
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function signOut() {
+    if (!supabase) return
+    const {error} = await supabase.auth.signOut()
+    if (error) setNotice(error.message)
+    else { setNotice('تم تسجيل الخروج.'); setPage('home') }
+  }
 
   async function signIn(e: FormEvent) {
     e.preventDefault()
     if (!supabase) { setNotice('المنصة في مرحلة التجهيز. سيتم تفعيل تسجيل الحسابات بعد ربط قاعدة البيانات.'); return }
-    const {error} = await supabase.auth.signInWithPassword({email,password})
-    setNotice(error ? error.message : 'تم تسجيل الدخول بنجاح.')
+    const {data,error} = await supabase.auth.signInWithPassword({email,password})
+    if (error) { setNotice(error.message); return }
+    setNotice('تم تسجيل الدخول بنجاح.')
+    setShowLogin(false)
+    setSignedIn(true)
+    if (data.user) await loadProfile(data.user.id)
   }
 
   const current = nav.find(n=>n.id===page)!
@@ -28,12 +69,12 @@ export default function App() {
     <aside className={`sidebar ${menu?'open':''}`}>
       <div className="brand"><div className="brand-mark"><Anchor size={25}/></div><div><b>HORUS LEADERS</b><small>مجموعة حورس البحرية</small></div><button className="close-menu" onClick={()=>setMenu(false)} aria-label="إغلاق"><X/></button></div>
       <div className="side-caption">مساحة التدريب</div>
-      <nav>{nav.map(item=>{const Icon=item.icon;return <button key={item.id} className={`nav-item ${page===item.id?'active':''}`} onClick={()=>{setPage(item.id);setMenu(false)}}><Icon size={19}/><span>{item.label}</span>{page===item.id&&<ChevronLeft size={16} className="nav-arrow"/>}</button>})}</nav>
+      <nav>{nav.filter(item=>item.id!=='admin'||userRole==='admin').map(item=>{const Icon=item.icon;return <button key={item.id} className={`nav-item ${page===item.id?'active':''}`} onClick={()=>{setPage(item.id);setMenu(false)}}><Icon size={19}/><span>{item.label}</span>{page===item.id&&<ChevronLeft size={16} className="nav-arrow"/>}</button>})}</nav>
       <div className="sidebar-bottom"><div className="support-card"><ShieldCheck size={19}/><b>رحلة إعداد القادة</b><p>نتعلم، نخدم، ونقود بروح الفريق.</p></div><small>الإصدار التجريبي 0.1</small></div>
     </aside>
     {menu&&<button className="scrim" onClick={()=>setMenu(false)} aria-label="إغلاق القائمة"/>}
     <main className="main-area">
-      <header className="topbar"><button className="icon-btn mobile-menu" onClick={()=>setMenu(true)} aria-label="القائمة"><Menu/></button><div className="breadcrumb">Horus Leaders <span>/</span> {current.label}</div><div className="top-actions"><button className="icon-btn" aria-label="الإشعارات"><Bell size={19}/><i/></button><button className="login-btn" onClick={()=>setShowLogin(true)}><LogIn size={17}/> دخول المتدربين</button></div></header>
+      <header className="topbar"><button className="icon-btn mobile-menu" onClick={()=>setMenu(true)} aria-label="القائمة"><Menu/></button><div className="breadcrumb">Horus Leaders <span>/</span> {current.label}</div><div className="top-actions"><button className="icon-btn" aria-label="الإشعارات"><Bell size={19}/><i/></button>{signedIn ? <><span className="breadcrumb">{userName || (userRole==='admin'?'مدير المنصة':userRole==='instructor'?'مدرب':'متدرب')} · {userRole==='admin'?'Admin':userRole==='instructor'?'Instructor':'Trainee'}</span><button className="login-btn" onClick={signOut}>تسجيل الخروج</button></> : <button className="login-btn" onClick={()=>setShowLogin(true)}><LogIn size={17}/> دخول المتدربين</button>}</div></header>
       <div className="content">
         {page==='home'&&<>
           <section className="welcome"><div className="welcome-copy"><span className="eyebrow">LEADERS PREPARATION SECTOR</span><h1>أهلاً بيك في <em>Horus Leaders</em></h1><p>مساحتك للتعلم والتدريب ومتابعة رحلتك في إعداد القادة.</p><button className="gold-btn" onClick={()=>setShowLogin(true)}>ابدأ رحلتك <ChevronLeft size={17}/></button></div><div className="welcome-art"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="compass"><Anchor size={76} strokeWidth={1.1}/></div><span className="star s1">✦</span><span className="star s2">✧</span></div></section>
@@ -46,7 +87,7 @@ export default function App() {
           </section>
           <section className="bottom-grid"><div className="panel announcement"><div className="panel-icon"><Megaphone size={20}/></div><div><span className="eyebrow">ANNOUNCEMENTS</span><h3>الإعلانات والتنبيهات</h3><p>هنا هتظهر أخبار المجموعة ومواعيد اللقاءات وأي تحديثات مهمة.</p></div><span className="coming">قريبًا</span></div><div className="panel progress-panel"><div className="progress-top"><div><span className="eyebrow">YOUR JOURNEY</span><h3>رحلتك التدريبية</h3></div><Award size={24}/></div><div className="progress-track"><span/></div><small>سجّل دخولك لمتابعة تقدمك</small></div></section>
         </>}
-        {page!=='home'&&<section className="page-panel"><div className="page-icon"><current.icon size={28}/></div><span className="eyebrow">HORUS LEADERS</span><h1>{current.label}</h1><p>{pageDescription(page)}</p><div className="empty-state"><div className="empty-icon"><FileText size={30}/></div><b>المساحة دي تحت التجهيز</b><span>هنضيف المحتوى والبيانات بعد ربط قاعدة البيانات وتجهيز حسابات الإدارة.</span><button className="outline-btn" onClick={()=>setPage('home')}>العودة للرئيسية</button></div></section>}
+        {page==='admin'&&userRole!=='admin' ? <section className="page-panel"><h1>غير مصرح بالدخول</h1><p>هذه الصفحة مخصصة لمدير المنصة فقط.</p><button className="outline-btn" onClick={()=>setPage('home')}>العودة للرئيسية</button></section> : page!=='home'&&<section className="page-panel"><div className="page-icon"><current.icon size={28}/></div><span className="eyebrow">HORUS LEADERS</span><h1>{current.label}</h1><p>{pageDescription(page)}</p><div className="empty-state"><div className="empty-icon"><FileText size={30}/></div><b>المساحة دي تحت التجهيز</b><span>هنضيف المحتوى والبيانات بعد ربط قاعدة البيانات وتجهيز حسابات الإدارة.</span><button className="outline-btn" onClick={()=>setPage('home')}>العودة للرئيسية</button></div></section>}
         <footer><span>© 2026 Horus Leaders</span><span>مجموعة حورس البحرية – قطاع إعداد قادة</span></footer>
       </div>
     </main>
