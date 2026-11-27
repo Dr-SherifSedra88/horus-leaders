@@ -19,8 +19,8 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
-export default function AssignmentsPage({ role }: { role: 'admin' | 'instructor' | 'trainee' | null }) {
-  const canManage = role === 'admin' || role === 'instructor'
+export default function AssignmentsPage({ role }: { role: 'super_admin' | 'admin' | 'trainee' | null }) {
+  const canManage = role === 'admin' || role === 'super_admin'
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
