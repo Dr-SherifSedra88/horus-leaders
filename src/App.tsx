@@ -16,10 +16,11 @@ export default function App() {
   const [page,setPage] = useState<Page>('home')
   const [menu,setMenu] = useState(false)
   const [showLogin,setShowLogin] = useState(false)
-  const [registerMode,setRegisterMode] = useState(false)
+  const [authMode,setAuthMode] = useState<'login'|'register'|'forgot'|'reset'>('login')
   const [fullName,setFullName] = useState('')
   const [email,setEmail] = useState('')
   const [password,setPassword] = useState('')
+  const [confirmPassword,setConfirmPassword] = useState('')
   const [showPassword,setShowPassword] = useState(false)
   const [notice,setNotice] = useState('')
   const [userRole,setUserRole] = useState<'admin'|'instructor'|'trainee'|null>(null)
@@ -41,8 +42,17 @@ export default function App() {
       setSignedIn(Boolean(session))
       if (session?.user) void loadProfile(session.user.id)
     })
-    const {data:{subscription}} = supabase.auth.onAuthStateChange((_event,session) => {
+    const {data:{subscription}} = supabase.auth.onAuthStateChange((event,session) => {
       setSignedIn(Boolean(session))
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthMode('reset')
+        setShowLogin(true)
+        setNotice('اكتب كلمة المرور الجديدة لحسابك.')
+      } else if (event === 'SIGNED_IN' && (window.location.hash.includes('access_token') || window.location.hash.includes('token_hash') || window.location.search.includes('code='))) {
+        setNotice('تم تأكيد بريدك الإلكتروني بنجاح. حسابك جاهز للاستخدام.')
+        setShowLogin(false)
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
       if (session?.user) {
         Promise.resolve().then(() => loadProfile(session.user.id))
       } else {
@@ -77,7 +87,7 @@ export default function App() {
     const {data,error} = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { full_name: fullName.trim() } }
+      options: { data: { full_name: fullName.trim() }, emailRedirectTo: `${window.location.origin}/` }
     })
     if (error) { setNotice('لم نتمكن من إنشاء الحساب: ' + error.message); return }
     setPassword('')
@@ -88,14 +98,35 @@ export default function App() {
       setNotice('تم إنشاء حساب المتدرب وتسجيل الدخول بنجاح.')
       setShowLogin(false)
     } else {
-      setRegisterMode(false)
-      setNotice('تم إنشاء الحساب. افتح رسالة التأكيد التي وصلتك على البريد الإلكتروني، وبعدها سجّل الدخول.')
+      setAuthMode('login')
+      setNotice('تم إنشاء الحساب. افتح رسالة التأكيد، وسيتم إرجاعك تلقائيًا إلى Horus Leaders بعد التحقق من بريدك الإلكتروني.')
     }
   }
 
+  async function sendPasswordReset(e: FormEvent) {
+    e.preventDefault()
+    if (!supabase) { setNotice('تعذر الاتصال بقاعدة البيانات.'); return }
+    const {error} = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/` })
+    if (error) setNotice('تعذر إرسال رابط الاستعادة: ' + error.message)
+    else setNotice('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لتغيير كلمة المرور.')
+  }
+
+  async function updatePassword(e: FormEvent) {
+    e.preventDefault()
+    if (password !== confirmPassword) { setNotice('كلمتا المرور غير متطابقتين.'); return }
+    if (!supabase) { setNotice('تعذر الاتصال بقاعدة البيانات.'); return }
+    const {error} = await supabase.auth.updateUser({password})
+    if (error) { setNotice('تعذر تحديث كلمة المرور: ' + error.message); return }
+    setPassword('')
+    setConfirmPassword('')
+    setAuthMode('login')
+    setNotice('تم تغيير كلمة المرور بنجاح. تقدر تسجل الدخول الآن.')
+  }
+
   function openAuth(register = false) {
-    setRegisterMode(register)
+    setAuthMode(register ? 'register' : 'login')
     setNotice('')
+    setPassword('')
     setShowLogin(true)
   }
 
@@ -126,7 +157,7 @@ export default function App() {
         <footer><span>© 2026 Horus Leaders</span><span>مجموعة حورس البحرية – قطاع إعداد قادة</span></footer>
       </div>
     </main>
-    {showLogin&&<div className="modal-backdrop" onClick={()=>setShowLogin(false)}><div className="login-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowLogin(false)}><X/></button><div className="modal-brand"><div className="brand-mark"><Anchor/></div><span className="eyebrow">{registerMode?'JOIN HORUS LEADERS':'WELCOME BACK'}</span><h2>{registerMode?'إنشاء حساب متدرب':'تسجيل الدخول'}</h2><p>{registerMode?'سجّل بياناتك للانضمام إلى المنصة':'ادخل على حسابك لمتابعة رحلتك التدريبية'}</p></div><form onSubmit={registerMode?signUp:signIn}>{registerMode&&<><label>الاسم بالكامل</label><input type="text" placeholder="الاسم كما سيظهر في المنصة" value={fullName} onChange={e=>setFullName(e.target.value)} required maxLength={100}/></>}<label>البريد الإلكتروني</label><input type="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/><label>كلمة المرور</label><div className="password-field"><input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8}/><button type="button" className="password-toggle" onClick={()=>setShowPassword(value=>!value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} title={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div><button className="gold-btn full" type="submit">{registerMode?'إنشاء الحساب':'تسجيل الدخول'} <ChevronLeft size={17}/></button></form>{notice&&<div className="notice">{notice}</div>}<button className="auth-switch" onClick={()=>{setRegisterMode(value=>!value);setNotice('')}}>{registerMode?'عندك حساب بالفعل؟ سجّل الدخول':'مستخدم جديد؟ أنشئ حساب متدرب'}</button><small className="privacy-note">كل حساب جديد يحصل تلقائيًا على صلاحية متدرب فقط. لا نطلب مستندات إثبات هوية.</small></div></div>}
+    {showLogin&&<div className="modal-backdrop" onClick={()=>setShowLogin(false)}><div className="login-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setShowLogin(false)}><X/></button><div className="modal-brand"><div className="brand-mark"><Anchor/></div><span className="eyebrow">{authMode==='register'?'JOIN HORUS LEADERS':'WELCOME BACK'}</span><h2>{authMode==='register'?'إنشاء حساب متدرب':authMode==='forgot'?'استعادة كلمة المرور':authMode==='reset'?'تعيين كلمة مرور جديدة':'تسجيل الدخول'}</h2><p>{authMode==='register'?'سجّل بياناتك للانضمام إلى المنصة':authMode==='forgot'?'اكتب بريدك الإلكتروني لإرسال رابط استعادة كلمة المرور':authMode==='reset'?'اختار كلمة مرور جديدة لحسابك':'ادخل على حسابك لمتابعة رحلتك التدريبية'}</p></div><form onSubmit={authMode==='register'?signUp:authMode==='forgot'?sendPasswordReset:authMode==='reset'?updatePassword:signIn}>{authMode==='register'&&<><label>الاسم بالكامل</label><input type="text" placeholder="الاسم كما سيظهر في المنصة" value={fullName} onChange={e=>setFullName(e.target.value)} required maxLength={100}/></>}{authMode!=='reset'&&<><label>البريد الإلكتروني</label><input type="email" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/></>}{(authMode==='login'||authMode==='register'||authMode==='reset')&&<><label>كلمة المرور</label><div className="password-field"><input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required minLength={8}/><button type="button" className="password-toggle" onClick={()=>setShowPassword(value=>!value)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} title={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div></>}{authMode==='reset'&&<><label>تأكيد كلمة المرور</label><input type="password" placeholder="أعد كتابة كلمة المرور" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required minLength={8}/></>}<button className="gold-btn full" type="submit">{authMode==='register'?'إنشاء الحساب':authMode==='forgot'?'إرسال رابط الاستعادة':authMode==='reset'?'حفظ كلمة المرور الجديدة':'تسجيل الدخول'} <ChevronLeft size={17}/></button></form>{notice&&<div className="notice">{notice}</div>}{authMode==='login'&&<button className="auth-switch" onClick={()=>{setAuthMode('forgot');setNotice('')}}>نسيت كلمة المرور؟</button>}{authMode==='forgot'&&<button className="auth-switch" onClick={()=>{setAuthMode('login');setNotice('')}}>العودة لتسجيل الدخول</button>}{authMode==='reset'&&<button className="auth-switch" onClick={()=>{setAuthMode('login');setNotice('');setPassword('');setConfirmPassword('')}}>العودة لتسجيل الدخول</button>}{(authMode==='login'||authMode==='register')&&<button className="auth-switch" onClick={()=>{setAuthMode(authMode==='register'?'login':'register');setNotice('');setPassword('')}}>{authMode==='register'?'عندك حساب بالفعل؟ سجّل الدخول':'مستخدم جديد؟ أنشئ حساب متدرب'}</button>}<small className="privacy-note">كل حساب جديد يحصل تلقائيًا على صلاحية متدرب فقط. لا نطلب مستندات إثبات هوية.</small></div></div>}
   </div>
 }
 
