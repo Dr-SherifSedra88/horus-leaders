@@ -21,3 +21,23 @@
 
 /* Trainee registration */
 .auth-switch{display:block;width:100%;border:0;background:transparent;color:#98763a;font-size:11px;font-weight:700;margin:14px 0 0;padding:6px}.auth-switch:hover{text-decoration:underline}.register-top-btn{background:#f7f3e9;border-color:#eadbb8;color:#8d6c32}
+
+
+/* Admin trainee directory and cohort enrollment */
+.trainee-count{font-size:10px;color:#8b7448;background:#f8f3e8;border-radius:20px;padding:7px 11px;white-space:nowrap}
+.member-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(240px,1.5fr);gap:12px;margin-bottom:14px}
+.member-toolbar>label{display:grid;gap:7px;font-size:10px;font-weight:700;color:#566279}
+.member-toolbar select,.member-search>div{height:40px;width:100%;border:1px solid #e2e7ef;border-radius:9px;background:#fff;padding:0 11px;font-size:11px;color:#253149}
+.member-search>div{display:flex;align-items:center;gap:8px;color:#9aa4b4}
+.member-search input{width:100%;min-width:0;border:0;outline:0;font-size:11px;background:transparent;direction:rtl;text-align:right}
+.trainee-list{display:grid}
+.trainee-row{display:flex;align-items:center;gap:11px;padding:12px 2px;border-bottom:1px solid #eef1f5}
+.trainee-row:last-child{border-bottom:0}
+.trainee-avatar{width:38px;height:38px;display:grid;place-items:center;flex-shrink:0;border-radius:12px;background:#f2f5f9;color:#65748d}
+.trainee-info{display:grid;gap:4px;min-width:0}
+.trainee-info strong{font-size:11px;color:#253149}
+.trainee-info span{font-size:10px;color:#8792a4;direction:ltr;text-align:right;overflow-wrap:anywhere}
+.enroll-btn{margin-right:auto;display:flex;align-items:center;gap:6px;white-space:nowrap;border:1px solid #e8d8b3;background:#fbf7ed;color:#8a6b32;border-radius:9px;padding:8px 11px;font-size:10px;font-weight:700}
+.enroll-btn:disabled{opacity:.55;cursor:wait}
+.enrolled-label{margin-right:auto;display:flex;align-items:center;gap:5px;color:#4d805c;background:#edf7ef;border-radius:20px;padding:7px 10px;font-size:9px;white-space:nowrap}
+@media(max-width:650px){.member-toolbar{grid-template-columns:1fr}.trainee-row{gap:8px}.trainee-info strong{font-size:10px}.trainee-info span{font-size:9px}.enroll-btn{font-size:9px;padding:7px 8px}.enrolled-label{font-size:8px;padding:6px 7px}}
