@@ -98,10 +98,12 @@ begin
     raise exception 'بعد بداية اللقاء، لا يمكن تقديم بلاغ إلا في حالة طارئة';
   end if;
 
-  if v_reason is null then
+  if v_reason is null and not coalesce(_emergency, false) then
     v_status := 'absent';
     v_excuse_status := 'none';
   else
+    -- Any emergency report after the session starts must be reviewed,
+    -- even when the trainee leaves the reason field blank.
     v_status := 'pending_excuse';
     v_excuse_status := 'pending';
   end if;
