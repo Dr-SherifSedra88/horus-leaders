@@ -26,8 +26,8 @@ function displayDate(value: string) {
   })
 }
 
-export default function SessionsPage({ role }: { role: 'admin' | 'instructor' | 'trainee' | null }) {
-  const canManage = role === 'admin' || role === 'instructor'
+export default function SessionsPage({ role }: { role: 'super_admin' | 'admin' | 'trainee' | null }) {
+  const canManage = role === 'admin' || role === 'super_admin'
   const [cohorts, setCohorts] = useState<Cohort[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
