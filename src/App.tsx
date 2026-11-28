@@ -6,10 +6,11 @@ import CurrentCohort from './CurrentCohort'
 import SessionsPage from './SessionsPage'
 import AssignmentsPage from './AssignmentsPage'
 import AttendancePage from './AttendancePage'
+import UserManagementPage from './UserManagementPage'
 
-type Page = 'home' | 'library' | 'assignments' | 'attendance' | 'cohort' | 'sessions' | 'admin'
+type Page = 'home' | 'library' | 'assignments' | 'attendance' | 'cohort' | 'sessions' | 'admin' | 'users'
 const nav: {id:Page; label:string; icon: typeof Home}[] = [
-  {id:'home',label:'الرئيسية',icon:Home},{id:'sessions',label:'اللقاءات والمحاضرات',icon:CalendarCheck},{id:'library',label:'مكتبة المحاضرات',icon:BookOpen},{id:'assignments',label:'التكليفات',icon:ClipboardList},{id:'attendance',label:'الحضور',icon:CalendarCheck},{id:'cohort',label:'الدفعة الحالية',icon:Users},{id:'admin',label:'الإدارة',icon:Settings}
+  {id:'home',label:'الرئيسية',icon:Home},{id:'sessions',label:'اللقاءات والمحاضرات',icon:CalendarCheck},{id:'library',label:'مكتبة المحاضرات',icon:BookOpen},{id:'assignments',label:'التكليفات',icon:ClipboardList},{id:'attendance',label:'الحضور',icon:CalendarCheck},{id:'cohort',label:'الدفعة الحالية',icon:Users},{id:'admin',label:'الإدارة',icon:Settings},{id:'users',label:'إدارة المستخدمين',icon:ShieldCheck}
 ]
 
 export default function App() {
@@ -137,7 +138,7 @@ export default function App() {
     <aside className={`sidebar ${menu?'open':''}`}>
       <div className="brand"><div className="brand-mark"><Anchor size={25}/></div><div><b>HORUS LEADERS</b><small>مجموعة حورس البحرية</small></div><button className="close-menu" onClick={()=>setMenu(false)} aria-label="إغلاق"><X/></button></div>
       <div className="side-caption">مساحة التدريب</div>
-      <nav>{nav.filter(item=>item.id!=='admin'||userRole==='admin'||userRole==='super_admin').map(item=>{const Icon=item.icon;return <button key={item.id} className={`nav-item ${page===item.id?'active':''}`} onClick={()=>{setPage(item.id);setMenu(false)}}><Icon size={19}/><span>{item.label}</span>{page===item.id&&<ChevronLeft size={16} className="nav-arrow"/>}</button>})}</nav>
+      <nav>{nav.filter(item=>(item.id!=='admin'||userRole==='admin'||userRole==='super_admin')&&(item.id!=='users'||userRole==='super_admin')).map(item=>{const Icon=item.icon;return <button key={item.id} className={`nav-item ${page===item.id?'active':''}`} onClick={()=>{setPage(item.id);setMenu(false)}}><Icon size={19}/><span>{item.label}</span>{page===item.id&&<ChevronLeft size={16} className="nav-arrow"/>}</button>})}</nav>
       <div className="sidebar-bottom"><div className="support-card"><ShieldCheck size={19}/><b>رحلة إعداد القادة</b><p>نتعلم، نخدم، ونقود بروح الفريق.</p></div><small>الإصدار التجريبي 0.1</small></div>
     </aside>
     {menu&&<button className="scrim" onClick={()=>setMenu(false)} aria-label="إغلاق القائمة"/>}
@@ -156,7 +157,7 @@ export default function App() {
           </section>
           <section className="bottom-grid"><div className="panel announcement"><div className="panel-icon"><Megaphone size={20}/></div><div><span className="eyebrow">ANNOUNCEMENTS</span><h3>الإعلانات والتنبيهات</h3><p>هنا هتظهر أخبار المجموعة ومواعيد اللقاءات وأي تحديثات مهمة.</p></div><span className="coming">قريبًا</span></div><div className="panel progress-panel"><div className="progress-top"><div><span className="eyebrow">YOUR JOURNEY</span><h3>رحلتك التدريبية</h3></div><Award size={24}/></div><div className="progress-track"><span/></div><small>سجّل دخولك لمتابعة تقدمك</small></div></section>
         </>}
-        {page==='admin'&&userRole!=='admin'&&userRole!=='super_admin' ? <section className="page-panel"><h1>غير مصرح بالدخول</h1><p>هذه الصفحة مخصصة لمدير المنصة فقط.</p><button className="outline-btn" onClick={()=>setPage('home')}>العودة للرئيسية</button></section> : page==='admin' ? <AdminDashboard/> : page==='cohort' ? <CurrentCohort signedIn={signedIn}/> : page==='sessions' ? <SessionsPage role={userRole}/> : page==='assignments' ? <AssignmentsPage role={userRole}/> : page==='attendance' ? <AttendancePage role={userRole}/> : page!=='home'&&<section className="page-panel"><div className="page-icon"><current.icon size={28}/></div><span className="eyebrow">HORUS LEADERS</span><h1>{current.label}</h1><p>{pageDescription(page)}</p><div className="empty-state"><div className="empty-icon"><FileText size={30}/></div><b>المساحة دي تحت التجهيز</b><span>هنضيف المحتوى والبيانات بعد ربط قاعدة البيانات وتجهيز حسابات الإدارة.</span><button className="outline-btn" onClick={()=>setPage('home')}>العودة للرئيسية</button></div></section>}
+        {page==='users'&&userRole!=='super_admin' ? <section className="page-panel"><h1>غير مصرح بالدخول</h1><p>إدارة المستخدمين متاحة للمدير الأعلى فقط.</p></section> : page==='users' ? <UserManagementPage/> : page==='admin'&&userRole!=='admin'&&userRole!=='super_admin' ? <section className="page-panel"><h1>غير مصرح بالدخول</h1><p>هذه الصفحة مخصصة لمدير المنصة فقط.</p><button className="outline-btn" onClick={()=>setPage('home')}>العودة للرئيسية</button></section> : page==='admin' ? <AdminDashboard/> : page==='cohort' ? <CurrentCohort signedIn={signedIn}/> : page==='sessions' ? <SessionsPage role={userRole}/> : page==='assignments' ? <AssignmentsPage role={userRole}/> : page==='attendance' ? <AttendancePage role={userRole}/> : page!=='home'&&<section className="page-panel"><div className="page-icon"><current.icon size={28}/></div><span className="eyebrow">HORUS LEADERS</span><h1>{current.label}</h1><p>{pageDescription(page)}</p><div className="empty-state"><div className="empty-icon"><FileText size={30}/></div><b>المساحة دي تحت التجهيز</b><span>هنضيف المحتوى والبيانات بعد ربط قاعدة البيانات وتجهيز حسابات الإدارة.</span><button className="outline-btn" onClick={()=>setPage('home')}>العودة للرئيسية</button></div></section>}
         <footer><span>© 2026 Horus Leaders</span><span>مجموعة حورس البحرية – قطاع إعداد قادة</span></footer>
       </div>
     </main>
@@ -165,4 +166,4 @@ export default function App() {
 }
 
 function Feature({icon,title,desc,tag,onClick}:{icon:ReactNode;title:string;desc:string;tag:string;onClick:()=>void}){return <button className="feature-card" onClick={onClick}><div className="feature-top"><div className="feature-icon">{icon}</div><span>{tag}</span></div><h3>{title}</h3><p>{desc}</p><div className="feature-link">استكشف <ChevronLeft size={16}/></div></button>}
-function pageDescription(page:Page){return ({sessions:'مواعيد اللقاءات وتفاصيلها وروابطها والمواد التعليمية الخاصة بكل دفعة.',library:'المحاضرات الأساسية والمراجع والمواد التدريبية المشتركة بين الدفعات.',assignments:'التكليفات المطلوبة ومواعيد التسليم والاختبارات والتقييمات.',attendance:'متابعة الحضور والغياب وسجل المشاركة في اللقاءات.',cohort:'معلومات الدفعة الحالية ومواعيد اللقاءات والإعلانات.',admin:'إدارة المتدربين والمدربين والمحتوى والدفعات والتقارير.',home:''})[page]}
+function pageDescription(page:Page){return ({sessions:'مواعيد اللقاءات وتفاصيلها وروابطها والمواد التعليمية الخاصة بكل دفعة.',library:'المحاضرات الأساسية والمراجع والمواد التدريبية المشتركة بين الدفعات.',assignments:'التكليفات المطلوبة ومواعيد التسليم والاختبارات والتقييمات.',attendance:'متابعة الحضور والغياب وسجل المشاركة في اللقاءات.',cohort:'معلومات الدفعة الحالية ومواعيد اللقاءات والإعلانات.',admin:'إدارة المتدربين والمحتوى والدفعات والتقارير.',users:'إدارة الحسابات والأدوار وسجل تغييرات الصلاحيات.',home:''})[page]}
