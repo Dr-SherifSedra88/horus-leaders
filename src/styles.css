@@ -82,3 +82,29 @@
 @media(max-width:650px){.attendance-roster-tools{align-items:flex-start;flex-direction:column}}
 
 .remember-me{display:flex;align-items:center;gap:9px;margin-top:8px!important;color:#59667d;font-weight:600!important;cursor:pointer}.login-modal input.remember-checkbox{width:16px;height:16px;margin:0;padding:0;accent-color:#a98237;direction:ltr;cursor:pointer}
+
+
+.user-management{display:grid;gap:18px}
+.user-management-notice{display:flex;align-items:flex-start;gap:10px;padding:13px 15px;border:1px solid #e8dfc9;border-radius:11px;background:#fbf8f0;color:#79643a;font-size:10px;line-height:1.9}
+.user-management-notice svg{flex-shrink:0;margin-top:2px}
+.user-tools{display:grid;grid-template-columns:minmax(220px,1fr) 180px;gap:10px;margin-bottom:12px}
+.user-tools .member-search>div{height:40px}
+.user-tools select{border:1px solid #e2e7ef;border-radius:9px;padding:0 10px;background:#fff;font:inherit;font-size:11px;color:#253149}
+.user-account-list,.role-audit-list{display:grid}
+.user-account-row{display:flex;align-items:center;gap:11px;padding:13px 2px;border-bottom:1px solid #eef1f5}
+.user-account-row:last-child,.role-audit-row:last-child{border-bottom:0}
+.user-account-row .trainee-info{flex:1}
+.user-account-row .trainee-info small{font-size:9px;color:#9aa3b1}
+.user-role-chip{font-size:9px;padding:6px 9px;border-radius:20px;white-space:nowrap;background:#f1f3f6;color:#647188}
+.user-role-chip.role-super_admin{background:#f8f1df;color:#8b6c34}
+.user-role-chip.role-admin{background:#eaf0fa;color:#45618d}
+.protected-account{font-size:9px;color:#8b6c34;white-space:nowrap}
+.user-demote-btn{border:1px solid #e6d4d4;background:#fff;color:#9b4b4b;border-radius:9px;padding:8px 10px;font:inherit;font-size:10px;white-space:nowrap}
+.user-demote-btn:disabled,.enroll-btn:disabled{opacity:.55;cursor:wait}
+.role-audit-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 2px;border-bottom:1px solid #eef1f5}
+.role-audit-row>div{display:grid;gap:5px}
+.role-audit-row strong{font-size:11px}
+.role-audit-row span,.role-audit-row small{font-size:9px;color:#8792a4}
+.role-audit-row small{white-space:nowrap}
+.admin-section-head h2{display:flex;align-items:center;gap:7px}
+@media(max-width:650px){.user-tools{grid-template-columns:1fr}.user-account-row{flex-wrap:wrap;gap:8px}.user-account-row .trainee-info{min-width:calc(100% - 55px)}.user-account-row .user-role-chip{margin-right:48px}.user-account-row button,.protected-account{margin-right:auto}.role-audit-row{align-items:flex-start;flex-direction:column}}
