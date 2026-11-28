@@ -52,8 +52,17 @@ Deno.serve(async (req: Request) => {
   const { data: authData, error: authError } = await callerClient.auth.getUser(token);
 
   if (authError || !authData.user) {
+    console.error("manage-user-status: session verification failed", {
+      error: authError?.message ?? "No user returned",
+      code: authError?.code ?? null,
+      status: authError?.status ?? null,
+    });
     return response(401, { error: "Invalid or expired user session" });
   }
+
+  console.log("manage-user-status: session verified", {
+    callerUserId: authData.user.id,
+  });
 
   const adminClient = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -65,14 +74,38 @@ Deno.serve(async (req: Request) => {
     .eq("id", authData.user.id)
     .maybeSingle();
 
-  if (
-    callerProfileError ||
-    !callerProfile ||
-    callerProfile.role !== "super_admin" ||
-    callerProfile.is_active !== true
-  ) {
+  if (callerProfileError) {
+    console.error("manage-user-status: caller profile lookup failed", {
+      callerUserId: authData.user.id,
+      code: callerProfileError.code ?? null,
+      message: callerProfileError.message,
+      details: callerProfileError.details ?? null,
+      hint: callerProfileError.hint ?? null,
+    });
+    return response(500, { error: "Could not verify the caller profile" });
+  }
+
+  if (!callerProfile) {
+    console.error("manage-user-status: caller profile not found", {
+      callerUserId: authData.user.id,
+    });
     return response(403, { error: "Only an active Super Admin can manage account status" });
   }
+
+  if (callerProfile.role !== "super_admin" || callerProfile.is_active !== true) {
+    console.warn("manage-user-status: caller lacks required account status", {
+      callerUserId: authData.user.id,
+      role: callerProfile.role,
+      isActive: callerProfile.is_active,
+    });
+    return response(403, { error: "Only an active Super Admin can manage account status" });
+  }
+
+  console.log("manage-user-status: caller authorized", {
+    callerUserId: authData.user.id,
+    role: callerProfile.role,
+    isActive: callerProfile.is_active,
+  });
 
   let payload: { targetUserId?: string; action?: string };
   try {
